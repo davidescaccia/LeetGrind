@@ -31,6 +31,12 @@ export interface SubmitResult {
   fullData?: any
 }
 
+export interface SubmitError {
+  error: string
+  status?: number
+  details?: string
+}
+
 export interface TopicTag {
   id: string
   name: string
@@ -99,7 +105,7 @@ export const leetCodeApi = {
     return window.electronAPI.leetcode.validateCookie(cookie)
   },
 
-  async submitCode(questionSlug: string, questionId: string, code: string, lang: string, cookie: string, csrfToken?: string): Promise<SubmitResult | null> {
+  async submitCode(questionSlug: string, questionId: string, code: string, lang: string, cookie: string, csrfToken?: string): Promise<SubmitResult | SubmitError | null> {
     return window.electronAPI.leetcode.submitCode(questionSlug, questionId, code, lang, cookie, csrfToken || '')
   },
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { leetCodeApi, ProblemDetail, SubmitResult } from '../services/leetcode'
+import { leetCodeApi, ProblemDetail, SubmitResult, SubmitError } from '../services/leetcode'
 import {
   ArrowLeft,
   ExternalLink,
@@ -17,7 +17,8 @@ import {
   Clock,
   AlertCircle,
   Bookmark,
-  BookmarkCheck
+  BookmarkCheck,
+  X
 } from 'lucide-react'
 import { useStore } from '../store'
 
@@ -101,6 +102,7 @@ export default function ProblemDetailPage() {
   const [code, setCode] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null)
+  const [submitError, setSubmitError] = useState<SubmitError | null>(null)
   const [solvedData, setSolvedData] = useState<{ runtime: string; memory: string; runtimePercentile?: number; memoryPercentile?: number } | null>(null)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const availableLanguages = useMemo(() => {
@@ -269,16 +271,29 @@ export default function ProblemDetailPage() {
     window.electronAPI.shell.openExternal(`https://leetcode.com/problems/${slug}`)
   }
 
+  useEffect(() => {
+    if (!submitError) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSubmitError(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [submitError])
+
   const handleSubmitCode = async () => {
     if (!problem || !slug) return
 
     setSubmitting(true)
     setSubmitResult(null)
+    setSubmitError(null)
 
     try {
       const result = await leetCodeApi.submitCode(slug, problem.questionId, code, selectedLang, settings.cookie, settings.csrfToken)
 
-      if (result) {
+      if (result && 'error' in result) {
+        setSubmitting(false)
+        setSubmitError(result)
+      } else if (result) {
         setSubmitResult(result)
         setSubmitting(false)
 
@@ -294,12 +309,12 @@ export default function ProblemDetailPage() {
         }
       } else {
         setSubmitting(false)
-        alert('Failed to submit code. Check console for details.')
+        setSubmitError({ error: 'No response received from the submission handler.' })
       }
     } catch (error: any) {
       console.error('Submit error:', error)
       setSubmitting(false)
-      alert('Failed to submit code: ' + error?.message)
+      setSubmitError({ error: error?.message || 'Unknown error while submitting.' })
     }
   }
 
@@ -862,6 +877,69 @@ export default function ProblemDetailPage() {
           )}
         </div>
       </div>
+
+      {submitError && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}
+          onClick={() => setSubmitError(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="submit-error-title"
+            className="w-full max-w-lg p-5 rounded-card shadow-xl"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              border: '1px solid var(--border)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <XCircle size={24} className="shrink-0 mt-0.5" style={{ color: 'var(--error)' }} />
+              <div className="flex-1 min-w-0">
+                <h3 id="submit-error-title" className="font-semibold text-lg" style={{ color: 'var(--error)' }}>
+                  Submission failed{submitError.status ? ` (HTTP ${submitError.status})` : ''}
+                </h3>
+                <p className="text-sm mt-1 break-words" style={{ color: 'var(--text-primary)' }}>
+                  {submitError.error}
+                </p>
+              </div>
+              <button
+                onClick={() => setSubmitError(null)}
+                aria-label="Close"
+                className="shrink-0 p-1 rounded hover:opacity-70"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {submitError.details && (
+              <pre
+                className="mt-4 p-3 rounded-card text-xs overflow-auto max-h-60 whitespace-pre-wrap break-all"
+                style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  color: 'var(--text-secondary)',
+                  fontFamily: 'monospace'
+                }}
+              >
+                {submitError.details}
+              </pre>
+            )}
+
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setSubmitError(null)}
+                className="px-4 py-2 rounded-btn font-medium"
+                style={{ backgroundColor: 'var(--accent-primary)', color: 'white' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

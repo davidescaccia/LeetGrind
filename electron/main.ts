@@ -617,7 +617,7 @@ ipcMain.handle('leetcode:submitCode', async (_event, questionSlug: string, quest
 
     if (!csrfToken) {
       console.error('No CSRF token provided. Please add it in Settings.')
-      return null
+      return { error: 'No CSRF token provided. Please add it in Settings.' }
     }
 
     const submitWindow = new BrowserWindow({
@@ -731,7 +731,29 @@ ipcMain.handle('leetcode:submitCode', async (_event, questionSlug: string, quest
       if (submitResult.error || !submitResult.ok || !submitResult.data?.submission_id) {
         submitWindow.close()
         console.error('Submit failed:', submitResult)
-        return null
+        const data = submitResult.data
+        const status: number | undefined = submitResult.status
+        let message: string
+        if (submitResult.error) {
+          message = submitResult.error
+        } else if (status === 401 || status === 403) {
+          message = 'Not authorized. Your LEETCODE_SESSION cookie or CSRF token may be invalid or expired.'
+        } else if (status === 429) {
+          message = 'Too many requests. LeetCode is rate limiting submissions, wait a moment and retry.'
+        } else if (typeof data?.error === 'string' && data.error !== 'Failed to parse JSON') {
+          message = data.error
+        } else if (typeof data?.detail === 'string') {
+          message = data.detail
+        } else if (status && !submitResult.ok) {
+          message = `LeetCode responded with HTTP ${status}.`
+        } else {
+          message = 'LeetCode did not return a submission id.'
+        }
+        return {
+          error: message,
+          status,
+          details: data ? JSON.stringify(data, null, 2) : undefined
+        }
       }
 
       const submissionId = submitResult.data.submission_id
@@ -804,23 +826,6 @@ ipcMain.handle('leetcode:submitCode', async (_event, questionSlug: string, quest
             fullData: checkResult.data
           }
         }
-
-        if (state === 'FAILURE') {
-          submitWindow.close()
-
-          return {
-            submissionId: submissionId,
-            state: 'FAILURE',
-            status: checkResult.data.status_msg || 'Failed',
-            statusCode: checkResult.data.status_code,
-            totalCorrect: checkResult.data.total_correct,
-            totalTestcases: checkResult.data.total_testcases,
-            lastTestcase: checkResult.data.last_testcase || checkResult.data.input,
-            expectedOutput: checkResult.data.expected_output,
-            codeOutput: checkResult.data.code_output,
-            stdOutput: checkResult.data.std_output_list?.join('\n') || checkResult.data.std_output,
-          }
-        }
       }
 
       submitWindow.close()
@@ -833,12 +838,12 @@ ipcMain.handle('leetcode:submitCode', async (_event, questionSlug: string, quest
 
     } catch (error: any) {
       console.error('Submit error:', error?.message)
-      submitWindow.close()
-      return null
+      if (!submitWindow.isDestroyed()) submitWindow.close()
+      return { error: error?.message || 'Unknown error while submitting.' }
     }
   } catch (error: any) {
     console.error('Submit error:', error?.message)
-    return null
+    return { error: error?.message || 'Unknown error while submitting.' }
   }
 })
 

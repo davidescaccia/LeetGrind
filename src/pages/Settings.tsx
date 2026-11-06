@@ -12,13 +12,14 @@ import {
 } from 'lucide-react'
 import { useStore, Theme, Editor } from '../store'
 import { leetCodeApi } from '../services/leetcode'
+import { Logo, LANGUAGE_LOGOS, EDITOR_LOGOS } from '../components/Logo'
 
-const EDITORS: { value: Editor; label: string; icon: string }[] = [
-  { value: 'zed', label: 'Zed', icon: '⚡' },
-  { value: 'code', label: 'VS Code', icon: '💙' },
-  { value: 'vim', label: 'Vim', icon: '🌀' },
-  { value: 'hx', label: 'Helix', icon: '🦋' },
-  { value: 'idea', label: 'IntelliJ IDEA', icon: '💚' },
+const EDITORS: { value: Editor; label: string }[] = [
+  { value: 'zed', label: 'Zed' },
+  { value: 'code', label: 'VS Code' },
+  { value: 'vim', label: 'Vim' },
+  { value: 'hx', label: 'Helix' },
+  { value: 'idea', label: 'IntelliJ IDEA' },
 ]
 
 const LANGUAGES: { value: string; label: string }[] = [
@@ -200,7 +201,7 @@ export default function SettingsPage() {
                     border: `1px solid ${editor === e.value ? 'var(--accent-primary)' : 'var(--border)'}`
                   }}
                 >
-                  <span>{e.icon}</span>
+                  <Logo logo={EDITOR_LOGOS[e.value]} size={20} />
                   {e.label}
                 </button>
               ))}
@@ -208,25 +209,44 @@ export default function SettingsPage() {
           </div>
 
           <div className="mt-4">
-            <p className="font-medium mb-2" style={{ color: 'var(--text-primary)' }}>Default Language</p>
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="font-medium" style={{ color: 'var(--text-primary)' }}>Default Language</p>
+              <span className="text-sm" style={{ color: 'var(--accent-hover)' }}>
+                {LANGUAGES.find(l => l.value === defaultLang)?.label}
+              </span>
+            </div>
             <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>
               The default programming language for new problems
             </p>
             <div className="flex flex-wrap gap-2">
-              {LANGUAGES.map(l => (
-                <button
-                  key={l.value}
-                  onClick={() => setDefaultLang(l.value)}
-                  className="px-3 py-1.5 rounded-btn text-sm transition-all duration-150"
-                  style={{
-                    backgroundColor: defaultLang === l.value ? 'var(--accent-primary)' : 'var(--surface)',
-                    color: defaultLang === l.value ? 'white' : 'var(--text-secondary)',
-                    border: '1px solid var(--border)'
-                  }}
-                >
-                  {l.label}
-                </button>
-              ))}
+              {LANGUAGES.map(l => {
+                const selected = defaultLang === l.value
+                return (
+                  <button
+                    key={l.value}
+                    onClick={() => setDefaultLang(l.value)}
+                    title={l.label}
+                    aria-label={l.label}
+                    aria-pressed={selected}
+                    className="relative flex items-center justify-center w-11 h-11 rounded-btn transition-all duration-150 hover:scale-105"
+                    style={{
+                      backgroundColor: selected ? 'var(--accent-muted)' : 'var(--surface)',
+                      color: 'var(--text-primary)',
+                      border: `1px solid ${selected ? 'var(--accent-primary)' : 'var(--border)'}`
+                    }}
+                  >
+                    <Logo logo={LANGUAGE_LOGOS[l.value]} size={24} />
+                    {l.value === 'python3' && (
+                      <span
+                        className="absolute bottom-0.5 right-1 text-[10px] font-bold leading-none"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        3
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </SettingsSection>
